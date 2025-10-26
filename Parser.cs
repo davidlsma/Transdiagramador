@@ -1,0 +1,436 @@
+using Transdiagramdorfinal.Semantica;
+using System.Collections.Generic;
+
+
+
+
+using System;
+
+
+
+public class Parser {
+	public const int _EOF = 0;
+	public const int _identificador = 1;
+	public const int _numero = 2;
+	public const int _cadenaCh = 3;
+	public const int _nuevaLinea = 4;
+	public const int _LBRACE = 5;
+	public const int _RBRACE = 6;
+	public const int _def = 7;
+	public const int _self = 8;
+	public const int _return = 9;
+	public const int _pass = 10;
+	public const int maxT = 30;
+
+	const bool _T = true;
+	const bool _x = false;
+	const int minErrDist = 2;
+	
+	public Scanner scanner;
+	public Errors  errors;
+
+	public Token t;    // last recognized token
+	public Token la;   // lookahead token
+	int errDist = minErrDist;
+
+public TablaClases tabla = new TablaClases();
+
+
+
+	public Parser(Scanner scanner) {
+		this.scanner = scanner;
+		errors = new Errors();
+	}
+
+	void SynErr (int n) {
+		if (errDist >= minErrDist) errors.SynErr(la.line, la.col, n);
+		errDist = 0;
+	}
+
+	public void SemErr (string msg) {
+		if (errDist >= minErrDist) errors.SemErr(t.line, t.col, msg);
+		errDist = 0;
+	}
+	
+	void Get () {
+		for (;;) {
+			t = la;
+			la = scanner.Scan();
+			if (la.kind <= maxT) { ++errDist; break; }
+
+			la = t;
+		}
+	}
+	
+	void Expect (int n) {
+		if (la.kind==n) Get(); else { SynErr(n); }
+	}
+	
+	bool StartOf (int s) {
+		return set[s, la.kind];
+	}
+	
+	void ExpectWeak (int n, int follow) {
+		if (la.kind == n) Get();
+		else {
+			SynErr(n);
+			while (!StartOf(follow)) Get();
+		}
+	}
+
+
+	bool WeakSeparator(int n, int syFol, int repFol) {
+		int kind = la.kind;
+		if (kind == n) {Get(); return true;}
+		else if (StartOf(repFol)) {return false;}
+		else {
+			SynErr(n);
+			while (!(set[syFol, kind] || set[repFol, kind] || set[0, kind])) {
+				Get();
+				kind = la.kind;
+			}
+			return StartOf(syFol);
+		}
+	}
+
+	
+	void sintaxisPy() {
+		while (la.kind == 11) {
+			DeclaracionClase();
+			if (la.kind == 4) {
+				Get();
+			}
+		}
+		Expect(0);
+	}
+
+	void DeclaracionClase() {
+		Expect(11);
+		Expect(1);
+		string nombreClase = t.val; tabla.NuevaClase(nombreClase);
+		if (la.kind == 12) {
+			Get();
+			Expect(1);
+			string claseBase = t.val; tabla.AgregarHerencia(claseBase);
+			while (la.kind == 13) {
+				Get();
+				Expect(1);
+				string claseBase2 = t.val; tabla.AgregarHerencia(claseBase2);
+			}
+			Expect(14);
+		}
+		Expect(15);
+		Expect(4);
+		Expect(5);
+		if (la.kind == 4) {
+			Get();
+		}
+		DefinicionConstructor();
+		Expect(4);
+		while (la.kind == 7) {
+			DefinicionFuncion();
+			if (la.kind == 4) {
+				Get();
+			}
+		}
+		if (la.kind == 4) {
+			Get();
+		}
+		Expect(6);
+	}
+
+	void DefinicionConstructor() {
+		Expect(7);
+		Expect(16);
+		Expect(12);
+		Expect(8);
+		if (la.kind == 13) {
+			Get();
+			Expect(1);
+			if (la.kind == 17) {
+				Get();
+				Expect(1);
+			}
+			while (la.kind == 13) {
+				Get();
+				Expect(1);
+				if (la.kind == 17) {
+					Get();
+					Expect(1);
+				}
+			}
+		}
+		Expect(14);
+		Expect(15);
+		Expect(4);
+		Expect(5);
+		if (la.kind == 4) {
+			Get();
+		}
+		if (la.kind == 18) {
+			DefinicionSuperConstructor();
+			Expect(4);
+		}
+		while (la.kind == 19) {
+			DefinicionAtributo();
+			Expect(4);
+		}
+		if (la.kind == 4) {
+			Get();
+		}
+		Expect(6);
+	}
+
+	void DefinicionFuncion() {
+		Expect(7);
+		Expect(1);
+		string nombreFunc = t.val; var parametros = new List<string>();
+		Expect(12);
+		Expect(8);
+		if (la.kind == 13) {
+			Get();
+			Expect(1);
+			string param = t.val; if (param != null) parametros.Add(param);
+			while (la.kind == 13) {
+				Get();
+				Expect(1);
+				string param2 = t.val; if (param2 != null) parametros.Add(param2);
+			}
+		}
+		Expect(14);
+		Expect(15);
+		Expect(4);
+		Expect(5);
+		if (la.kind == 4) {
+			Get();
+		}
+		while (StartOf(1)) {
+			Sentencia();
+			Expect(4);
+		}
+		if (la.kind == 4) {
+			Get();
+		}
+		Expect(6);
+		tabla.AgregarMetodo(nombreFunc, parametros);
+	}
+
+	void DefinicionSuperConstructor() {
+		Expect(18);
+		Expect(12);
+		if (la.kind == 1) {
+			Get();
+			while (la.kind == 13) {
+				Get();
+				Expect(1);
+			}
+		}
+		Expect(14);
+	}
+
+	void DefinicionAtributo() {
+		Expect(19);
+		Expect(1);
+		string nombreAtr = t.val; tabla.AgregarAtributo(nombreAtr); 
+		Expect(17);
+		if (la.kind == 1) {
+			Get();
+		} else if (la.kind == 20) {
+			Get();
+		} else if (la.kind == 21) {
+			Get();
+		} else SynErr(31);
+	}
+
+	void Sentencia() {
+		if (la.kind == 1 || la.kind == 19) {
+			if (la.kind == 19) {
+				Get();
+			}
+			Expect(1);
+			if (la.kind == 17) {
+				Asignacion();
+			} else if (la.kind == 22) {
+				LlmadaFuncionClase();
+			} else SynErr(32);
+		} else if (la.kind == 10) {
+			Get();
+		} else if (la.kind == 9) {
+			Get();
+			if (StartOf(2)) {
+				Expresion();
+			}
+		} else SynErr(33);
+	}
+
+	void Asignacion() {
+		Expect(17);
+		Expect(1);
+	}
+
+	void LlmadaFuncionClase() {
+		Expect(22);
+		Expect(1);
+		Expect(12);
+		if (la.kind == 8) {
+			Get();
+		} else if (la.kind == 1) {
+			Get();
+		} else SynErr(34);
+		while (la.kind == 13) {
+			Get();
+			if (la.kind == 8) {
+				Get();
+			} else if (la.kind == 1) {
+				Get();
+			} else SynErr(35);
+		}
+		Expect(14);
+	}
+
+	void Expresion() {
+		Term();
+		if (StartOf(3)) {
+			switch (la.kind) {
+			case 23: {
+				Get();
+				break;
+			}
+			case 24: {
+				Get();
+				break;
+			}
+			case 25: {
+				Get();
+				break;
+			}
+			case 26: {
+				Get();
+				break;
+			}
+			case 27: {
+				Get();
+				break;
+			}
+			case 28: {
+				Get();
+				break;
+			}
+			case 29: {
+				Get();
+				break;
+			}
+			}
+			Term();
+		}
+	}
+
+	void Term() {
+		if (la.kind == 2) {
+			Get();
+		} else if (la.kind == 3) {
+			Get();
+		} else if (la.kind == 21) {
+			Get();
+		} else if (la.kind == 19) {
+			Get();
+			Expect(1);
+		} else SynErr(36);
+	}
+
+
+
+	public void Parse() {
+		la = new Token();
+		la.val = "";		
+		Get();
+		sintaxisPy();
+		Expect(0);
+
+	}
+	
+	static readonly bool[,] set = {
+		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x},
+		{_x,_T,_x,_x, _x,_x,_x,_x, _x,_T,_T,_x, _x,_x,_x,_x, _x,_x,_x,_T, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x},
+		{_x,_x,_T,_T, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_T, _x,_T,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x},
+		{_x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_T, _T,_T,_T,_T, _T,_T,_x,_x}
+
+	};
+} // end Parser
+
+
+public class Errors {
+	public int count = 0;                                    // number of errors detected
+	public System.IO.TextWriter errorStream = Console.Out;   // error messages go to this stream
+	public string errMsgFormat = "-- line {0} col {1}: {2}"; // 0=line, 1=column, 2=text
+
+	public virtual void SynErr (int line, int col, int n) {
+		string s;
+		switch (n) {
+			case 0: s = "EOF expected"; break;
+			case 1: s = "identificador expected"; break;
+			case 2: s = "numero expected"; break;
+			case 3: s = "cadenaCh expected"; break;
+			case 4: s = "nuevaLinea expected"; break;
+			case 5: s = "LBRACE expected"; break;
+			case 6: s = "RBRACE expected"; break;
+			case 7: s = "def expected"; break;
+			case 8: s = "self expected"; break;
+			case 9: s = "return expected"; break;
+			case 10: s = "pass expected"; break;
+			case 11: s = "\"class\" expected"; break;
+			case 12: s = "\"(\" expected"; break;
+			case 13: s = "\",\" expected"; break;
+			case 14: s = "\")\" expected"; break;
+			case 15: s = "\":\" expected"; break;
+			case 16: s = "\"__init__\" expected"; break;
+			case 17: s = "\"=\" expected"; break;
+			case 18: s = "\"super().__init__\" expected"; break;
+			case 19: s = "\"self.\" expected"; break;
+			case 20: s = "\"[]\" expected"; break;
+			case 21: s = "\"None\" expected"; break;
+			case 22: s = "\".\" expected"; break;
+			case 23: s = "\"+\" expected"; break;
+			case 24: s = "\"-\" expected"; break;
+			case 25: s = "\">=\" expected"; break;
+			case 26: s = "\"<=\" expected"; break;
+			case 27: s = "\">\" expected"; break;
+			case 28: s = "\"<\" expected"; break;
+			case 29: s = "\"==\" expected"; break;
+			case 30: s = "??? expected"; break;
+			case 31: s = "invalid DefinicionAtributo"; break;
+			case 32: s = "invalid Sentencia"; break;
+			case 33: s = "invalid Sentencia"; break;
+			case 34: s = "invalid LlmadaFuncionClase"; break;
+			case 35: s = "invalid LlmadaFuncionClase"; break;
+			case 36: s = "invalid Term"; break;
+
+			default: s = "error " + n; break;
+		}
+		errorStream.WriteLine(errMsgFormat, line, col, s);
+		count++;
+	}
+
+	public virtual void SemErr (int line, int col, string s) {
+		errorStream.WriteLine(errMsgFormat, line, col, s);
+		count++;
+	}
+	
+	public virtual void SemErr (string s) {
+		errorStream.WriteLine(s);
+		count++;
+	}
+	
+	public virtual void Warning (int line, int col, string s) {
+		errorStream.WriteLine(errMsgFormat, line, col, s);
+	}
+	
+	public virtual void Warning(string s) {
+		errorStream.WriteLine(s);
+	}
+} // Errors
+
+
+public class FatalError: Exception {
+	public FatalError(string m): base(m) {}
+}

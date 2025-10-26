@@ -1,0 +1,56 @@
+﻿using Transdiagramdorfinal.Semantica;
+using System.Collections.Generic;
+
+
+COMPILER sintaxisPy
+
+    public TablaClases tabla = new TablaClases();
+
+CHARACTERS
+  letra = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" .
+  digito  = "0123456789" .
+  espacio = ' ' + '\t' .
+  saltoLinea = '\n' + '\r' .
+  carCadena  = letra + digito + espacio + '.' + ',' + ':' .
+
+TOKENS
+  identificador = letra { letra | digito | "_" } .
+  numero = digito { digito } .
+  cadenaCh = '"' { carCadena } '"' .
+  nuevaLinea = saltoLinea {saltoLinea} .
+  LBRACE = "{" .
+  RBRACE = "}" .
+  def = "def" .
+  self = "self" .
+  return = "return" .
+  pass = "pass" .
+
+
+IGNORE espacio 
+
+PRODUCTIONS
+  sintaxisPy = {DeclaracionClase [nuevaLinea]} EOF.
+
+  DeclaracionClase = "class" identificador (. string nombreClase = t.val; tabla.NuevaClase(nombreClase);.) [ "(" identificador (. string claseBase = t.val; tabla.AgregarHerencia(claseBase);.) { "," identificador (. string claseBase2 = t.val; tabla.AgregarHerencia(claseBase2);.) } ")" ] ":" nuevaLinea LBRACE [nuevaLinea]  DefinicionConstructor nuevaLinea {DefinicionFuncion [nuevaLinea]} [nuevaLinea] RBRACE .
+
+  DefinicionConstructor = def "__init__" "(" self [ "," identificador ["=" identificador] { "," identificador ["=" identificador] } ] ")" ":" nuevaLinea LBRACE [nuevaLinea] [DefinicionSuperConstructor nuevaLinea] {DefinicionAtributo nuevaLinea} [nuevaLinea] RBRACE .
+
+  DefinicionSuperConstructor = "super().__init__" "(" [ identificador { "," identificador } ] ")".
+
+  DefinicionAtributo = "self." identificador (.string nombreAtr = t.val; tabla.AgregarAtributo(nombreAtr); .) "=" (identificador | "[]" | "None" ) .
+
+  DefinicionFuncion = def identificador (.string nombreFunc = t.val; var parametros = new List<string>();.) "(" self [ "," identificador (. string param = t.val; if (param != null) parametros.Add(param);.) { "," identificador (.string param2 = t.val; if (param2 != null) parametros.Add(param2);.) } ] ")" ":" nuevaLinea LBRACE [nuevaLinea] { Sentencia nuevaLinea } [nuevaLinea] RBRACE (.tabla.AgregarMetodo(nombreFunc, parametros);.) .
+
+  Sentencia = ["self."] identificador (Asignacion | LlmadaFuncionClase) | pass | return [Expresion] .
+
+  LlmadaFuncionClase = "." identificador "(" (self | identificador) { "," (self | identificador) } ")" .
+
+  Asignacion = "=" identificador .
+
+  Expresion = Term [ ( "+" | "-" | ">=" | "<=" | ">" | "<" | "==" ) Term ]  .  // Expandida para operadores
+
+  Term = numero | cadenaCh | "None" | "self." identificador .
+
+
+
+END sintaxisPy.
