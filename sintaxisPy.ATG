@@ -39,7 +39,17 @@ PRODUCTIONS
 
   DefinicionAtributo = "self." identificador (.string nombreAtr = t.val; tabla.AgregarAtributo(nombreAtr); .) "=" (identificador | "[]" | "None" ) .
 
-  DefinicionFuncion = def identificador (.string nombreFunc = t.val; var parametros = new List<string>();.) "(" self [ "," identificador (. string param = t.val; if (param != null) parametros.Add(param);.) { "," identificador (.string param2 = t.val; if (param2 != null) parametros.Add(param2);.) } ] ")" ":" nuevaLinea LBRACE [nuevaLinea] { Sentencia nuevaLinea } [nuevaLinea] RBRACE (.tabla.AgregarMetodo(nombreFunc, parametros);.) .
+  DefinicionAtributo = "self." identificador (.string nombreAtr = t.val;string tipoRel = "Desconocido"; string tipoAtrib = "Desconocido"; tabla.AgregarAtributo(nombreAtr); .) "=" 
+  (identificador (. string claseDest = t.val;
+             if (tabla.BuscarClase(claseDest) != null) {
+               tipoRel = "Asociacion";
+               tipoAtrib = claseDest;
+               char primerCaracterMayuscula = char.ToUpper(claseDest[0]);
+               string restoDeCadena = claseDest.Substring(1);
+               string nombreCorregido = primerCaracterMayuscula + restoDeCadena;
+               tabla.AgregarRelacion(tabla.ClaseActual.Nombre, primerCaracterMayuscula + restoDeCadena, tipoRel);
+           }.)
+  | "[]" | "None" ) .
 
   Sentencia = ["self."] identificador (Asignacion | LlmadaFuncionClase) | pass | return [Expresion] .
 
