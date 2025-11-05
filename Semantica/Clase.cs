@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Transdiagramdorfinal.Semantica
 {
@@ -13,7 +13,7 @@ namespace Transdiagramdorfinal.Semantica
     {
         public string Nombre { get; set; }
         public string Tipo { get; set; } = "Desconocido";
-        public Atributo(string nombre, string tipo = "Desconocido")
+        public Atributo(string nombre, string tipo)
         {
             Nombre = nombre;
             Tipo = tipo;
@@ -26,6 +26,18 @@ namespace Transdiagramdorfinal.Semantica
         public Metodo(string nombre)
         {
             Nombre = nombre;
+        }
+    }
+    public class Relacion
+    {
+        public string Origen { get; set; }   // Clase que contiene la referencia
+        public string Destino { get; set; }  // Clase referenciada
+        public string Tipo { get; set; }     // Asociación | Agregación | Composición
+        public Relacion(string origen, string destino, string tipo)
+        {
+            Origen = origen;
+            Destino = destino;
+            Tipo = tipo;
         }
     }
 }
