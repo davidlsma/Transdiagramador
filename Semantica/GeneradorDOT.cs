@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text;
 
 namespace Transdiagramdorfinal.Semantica
@@ -26,8 +26,38 @@ namespace Transdiagramdorfinal.Semantica
                 foreach (var baseClass in clase.Herencias)
                     sb.AppendLine($"\"{clase.Nombre}\" -> \"{baseClass}\" [arrowhead=\"empty\"];");
             }
+            if (tabla.Relaciones != null)
+            {
+                foreach (var rel in tabla.Relaciones)
+                {
+                    string estilo = "";
+                    string color = "black";
+
+                    switch (rel.Tipo)
+                    {
+                        case "Asociacion":
+                            estilo = "[arrowhead=none, style=\"solid\", color=\"black\"]";
+                            break;
+
+                        case "Agregacion":
+                            estilo = "[arrowhead=\"odiamond\", style=\"dashed\", color=\"gray50\"]";
+                            break;
+
+                        case "Composicion":
+                            estilo = "[arrowhead=\"diamond\", style=\"solid\", color=\"black\"]";
+                            break;
+
+                        default:
+                            estilo = "[style=\"dotted\", color=\"gray50\"]";
+                            break;
+                    }
+
+                    sb.AppendLine($"\"{rel.Origen}\" -> \"{rel.Destino}\" {estilo};");
+                }
+            }
             sb.AppendLine("}");
             File.WriteAllText(rutaSalida, sb.ToString());
+
         }
     }
 }
