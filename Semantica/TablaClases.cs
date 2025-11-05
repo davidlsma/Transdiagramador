@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Transdiagramdorfinal.Semantica
@@ -30,7 +30,13 @@ namespace Transdiagramdorfinal.Semantica
         }
         public Clase BuscarClase(string nombre)
         {
-            return Clases.FirstOrDefault(c => c.Nombre == nombre);
+            return Clases.FirstOrDefault(c => c.Nombre.ToLower() == nombre);
+        }
+        public List<Relacion> Relaciones { get; private set; } = new List<Relacion>();
+        public void AgregarRelacion(string origen, string destino, string tipo)
+        {
+            Relaciones.Add(new Relacion(origen, destino, tipo));
         }
     }
 }
+
