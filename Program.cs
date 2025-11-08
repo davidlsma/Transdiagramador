@@ -1,33 +1,55 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
-using Transdiagramdorfinal.Semantica;
+using Transdiagramdorfinal.Semantica;  // Asegúrate de que este namespace esté disponible
+
 class Program
 {
-    static void Main()
+    static void Main(string[] args)
     {
-        string archivoOriginal = "C:\\Users\\USUARIO\\source\\repos\\Transdiagramdorfinal\\bin\\Debug\\ejemplo1.py";
-        string archivoProcesado = "C:\\Users\\USUARIO\\source\\repos\\Transdiagramdorfinal\\bin\\Debug\\ejemplo1_procesado.py";
+        // Validar argumentos: al menos uno (ruta del archivo .py)
+        if (args.Length < 1)
+        {
+            Console.WriteLine(" Error: Debes proporcionar la ruta del archivo .py como argumento.");
+            Console.WriteLine("Uso: MiBackend.exe <ruta_archivo_py> [ruta_archivo_dot]");
+            return;
+        }
+
+        string archivoOriginal = args[0];  
+        string archivoProcesado = Path.Combine(Path.GetDirectoryName(archivoOriginal), Path.GetFileNameWithoutExtension(archivoOriginal) + "_procesado.py");
+        string rutaDot = args.Length > 1 ? args[1] : Path.Combine(Path.GetDirectoryName(archivoOriginal), "output.dot");  // Ruta de salida por defecto si no se especifica
+
         try
         {
+            // Verificar si el archivo de entrada existe
+            if (!File.Exists(archivoOriginal))
+            {
+                Console.WriteLine($"Error: El archivo de entrada '{archivoOriginal}' no existe.");
+                return;
+            }
+
             string input = File.ReadAllText(archivoOriginal);
             string inputProcesado = PreprocesarIndentacion(input);
             File.WriteAllText(archivoProcesado, inputProcesado);
+
             Console.WriteLine($"Verificando GRAMATICA");
-            Scanner scanner = new Scanner("C:\\Users\\USUARIO\\source\\repos\\Transdiagramdorfinal\\bin\\Debug\\ejemplo1_procesado.py");
+            Scanner scanner = new Scanner(archivoProcesado);
             Parser parser = new Parser(scanner);
             parser.Parse();
             Console.WriteLine($"Fin de proceso");
-            string rutaDot = "C:\\Users\\USUARIO\\source\\repos\\Transdiagramdorfinal\\bin\\Debug\\diagrama.dot";
-            GeneradorDot.GenerarDot(parser.tabla, rutaDot);
-            Console.WriteLine($"✅ Archivo DOT generado en {rutaDot}");
 
+            GeneradorDot.GenerarDot(parser.tabla, rutaDot);
+            Console.WriteLine($" Archivo DOT generado en {rutaDot}");
+
+            // Imprimir la ruta del .dot para que Python la capture (esto es la "salida" principal)
+            Console.WriteLine(rutaDot);  // Esto será capturado por subprocess en Python
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error durante el parsing: {ex.Message}");
+            Console.WriteLine($"Error durante el parsing: {ex.Message}");
         }
     }
+
     static string PreprocesarIndentacion(string input)
     {
         var lines = input.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
