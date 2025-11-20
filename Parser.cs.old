@@ -14,13 +14,22 @@ public class Parser {
 	public const int _numero = 2;
 	public const int _cadenaCh = 3;
 	public const int _nuevaLinea = 4;
-	public const int _LBRACE = 5;
-	public const int _RBRACE = 6;
-	public const int _def = 7;
-	public const int _self = 8;
-	public const int _return = 9;
-	public const int _pass = 10;
-	public const int maxT = 30;
+	public const int _int = 5;
+	public const int _str = 6;
+	public const int _object = 7;
+	public const int _list = 8;
+	public const int _float = 9;
+	public const int _bool = 10;
+	public const int _def = 11;
+	public const int _self = 12;
+	public const int _none = 13;
+	public const int _class = 14;
+	public const int _pass = 15;
+	public const int _print = 16;
+	public const int _return = 17;
+	public const int _LBRACE = 18;
+	public const int _RBRACE = 19;
+	public const int maxT = 41;
 
 	const bool _T = true;
 	const bool _x = false;
@@ -33,7 +42,7 @@ public class Parser {
 	public Token la;   // lookahead token
 	int errDist = minErrDist;
 
-    public TablaClases tabla = new TablaClases();
+public TablaClases tabla = new TablaClases(); 
 
 
 
@@ -95,7 +104,7 @@ public class Parser {
 
 	
 	void sintaxisPy() {
-		while (la.kind == 11) {
+		while (la.kind == 14) {
 			DeclaracionClase();
 			if (la.kind == 4) {
 				Get();
@@ -105,237 +114,425 @@ public class Parser {
 	}
 
 	void DeclaracionClase() {
-		Expect(11);
+		Expect(14);
 		Expect(1);
 		string nombreClase = t.val; tabla.NuevaClase(nombreClase);
-		if (la.kind == 12) {
+		if (la.kind == 20) {
 			Get();
-			Expect(1);
-			string claseBase = t.val; tabla.AgregarHerencia(claseBase);
-			while (la.kind == 13) {
-				Get();
-				Expect(1);
-				string claseBase2 = t.val; tabla.AgregarHerencia(claseBase2);
-			}
-			Expect(14);
+			ListaHerencia();
+			Expect(21);
 		}
-		Expect(15);
-		Expect(4);
-		Expect(5);
+		Expect(22);
 		if (la.kind == 4) {
 			Get();
 		}
-		DefinicionConstructor();
-		Expect(4);
-		while (la.kind == 7) {
-			DefinicionFuncion();
+		Expect(18);
+		while (la.kind == 4) {
+			Get();
+		}
+		DefinicionAtributo();
+		if (la.kind == 4) {
+			Get();
+		}
+		while (la.kind == 1 || la.kind == 24 || la.kind == 25) {
+			DefinicionAtributo();
 			if (la.kind == 4) {
 				Get();
 			}
 		}
+		DefinicionConstructor();
 		if (la.kind == 4) {
 			Get();
 		}
-		Expect(6);
+		if (la.kind == 11) {
+			DefinicionMetodo();
+			if (la.kind == 4) {
+				Get();
+			}
+			while (la.kind == 11) {
+				DefinicionMetodo();
+				if (la.kind == 4) {
+					Get();
+				}
+			}
+		}
+		Expect(19);
+	}
+
+	void ListaHerencia() {
+		Expect(1);
+		string claseBase = t.val; tabla.AgregarHerencia(claseBase); 
+		while (la.kind == 23) {
+			Get();
+			Expect(1);
+			string otraClase = t.val; tabla.AgregarHerencia(otraClase); 
+		}
+	}
+
+	void DefinicionAtributo() {
+		if (la.kind == 24 || la.kind == 25) {
+			if (la.kind == 24) {
+				Get();
+			} else {
+				Get();
+			}
+		}
+		string visibilidad = t.val; 
+		if (visibilidad == "__") visibilidad = "-";
+		else if (visibilidad == "_") visibilidad = "#";
+		else visibilidad = "+"; 
+		Expect(1);
+		string nombreAtr = t.val; 
+		string tipo = "Desconocido"; string valorInicial = null; 
+		if (la.kind == 22) {
+			Get();
+			Tipo(out tipo);
+		}
+		if (la.kind == 26) {
+			Get();
+			if (la.kind == 2) {
+				Get();
+				valorInicial = t.val; 
+			} else if (la.kind == 3) {
+				Get();
+				valorInicial = t.val; 
+			} else if (la.kind == 27) {
+				Get();
+				valorInicial = "[]"; 
+			} else if (la.kind == 13) {
+				Get();
+				valorInicial = "None"; 
+			} else SynErr(42);
+		}
+		tabla.AgregarAtributo(visibilidad, nombreAtr, tipo, valorInicial);
+		List <string> primitivos = new List<string> {"int", "str", "float", "bool"};
+		if (!primitivos.Contains(tipo)) 
+		{
+		 string relacion = "asociacion";
+		 string tipoDestino = tipo;
+		 string cardOrigen = "1";
+		 string cardDestino = "1";
+		 
+		 if (tipo == "object" || tipo == "None") 
+		 {
+		     Console.WriteLine(char.ToUpper(nombreAtr[0]) + nombreAtr.Substring(1));
+		     if (tabla.BuscarClase(char.ToUpper(nombreAtr[0]) + nombreAtr.Substring(1)) != null)
+		     {
+		         Console.WriteLine($"Entra");
+		         tipoDestino = char.ToUpper(nombreAtr[0]) + nombreAtr.Substring(1);
+		         Console.WriteLine(tipoDestino);
+		         cardDestino = "0..1";
+		     }
+		 }
+		 
+		 if (tipo.StartsWith("list[")) 
+		 {
+		   tipoDestino = tipo.Substring(5, tipo.Length - 6);
+		   cardDestino = "*";
+		 }
+		
+		 Clase claseDestino = tabla.BuscarClase(tipoDestino);
+		 if (claseDestino != null) 
+		 {
+		   tabla.AgregarRelacion(tabla.ClaseActual.Nombre, claseDestino.Nombre, relacion, cardOrigen, cardDestino);
+		 }
+		}
+		
 	}
 
 	void DefinicionConstructor() {
-		Expect(7);
-		Expect(16);
+		Expect(11);
+		Expect(30);
+		string constructor = t.val; List<string> parametros = new List<string>(); tabla.AgregarMetodo(constructor, parametros); 
+		Expect(20);
 		Expect(12);
-		Expect(8);
-		if (la.kind == 13) {
+		if (la.kind == 23) {
 			Get();
 			Expect(1);
-			if (la.kind == 17) {
+			if (la.kind == 26) {
 				Get();
-				Expect(1);
+				Term();
 			}
-			while (la.kind == 13) {
+			while (la.kind == 23) {
 				Get();
 				Expect(1);
-				if (la.kind == 17) {
+				if (la.kind == 26) {
+					Get();
+					Term();
+				}
+			}
+		}
+		Expect(21);
+		Expect(22);
+		Expect(4);
+		Expect(18);
+		if (la.kind == 4) {
+			Get();
+		}
+		if (la.kind == 31) {
+			Get();
+			Expect(20);
+			if (la.kind == 1) {
+				Get();
+				while (la.kind == 23) {
 					Get();
 					Expect(1);
 				}
 			}
-		}
-		Expect(14);
-		Expect(15);
-		Expect(4);
-		Expect(5);
-		if (la.kind == 4) {
-			Get();
-		}
-		if (la.kind == 18) {
-			DefinicionSuperConstructor();
+			Expect(21);
 			Expect(4);
 		}
-		while (la.kind == 19) {
-			DefinicionAtributo();
-			Expect(4);
-		}
-		if (la.kind == 4) {
-			Get();
-		}
-		Expect(6);
-	}
-
-	void DefinicionFuncion() {
-		Expect(7);
-		Expect(1);
-		string nombreFunc = t.val; var parametros = new List<string>();
-		Expect(12);
-		Expect(8);
-		if (la.kind == 13) {
-			Get();
-			Expect(1);
-			string param = t.val; if (param != null) parametros.Add(param);
-			while (la.kind == 13) {
-				Get();
-				Expect(1);
-				string param2 = t.val; if (param2 != null) parametros.Add(param2);
-			}
-		}
-		Expect(14);
-		Expect(15);
-		Expect(4);
-		Expect(5);
+		Sentencia();
 		if (la.kind == 4) {
 			Get();
 		}
 		while (StartOf(1)) {
 			Sentencia();
-			Expect(4);
+			if (la.kind == 4) {
+				Get();
+			}
 		}
+		Expect(19);
+	}
+
+	void DefinicionMetodo() {
+		Expect(11);
+		Expect(1);
+		string nombreFunc = t.val; 
+		Expect(20);
+		List<string> parametros = new List<string>(); 
+		Expect(12);
+		if (la.kind == 1 || la.kind == 23) {
+			ListaParametros(out parametros);
+		}
+		Expect(21);
+		Expect(22);
+		Expect(4);
+		tabla.AgregarMetodo(nombreFunc, parametros); 
+		Expect(18);
 		if (la.kind == 4) {
 			Get();
 		}
-		Expect(6);
-		tabla.AgregarMetodo(nombreFunc, parametros);
-	}
-
-	void DefinicionSuperConstructor() {
-		Expect(18);
-		Expect(12);
-		if (la.kind == 1) {
+		Sentencia();
+		if (la.kind == 4) {
 			Get();
-			while (la.kind == 13) {
+		}
+		while (StartOf(1)) {
+			Sentencia();
+			if (la.kind == 4) {
 				Get();
-				Expect(1);
 			}
 		}
-		Expect(14);
+		Expect(19);
 	}
 
-	void DefinicionAtributo() {
-		Expect(19);
-		Expect(1);
-		string nombreAtr = t.val; tabla.AgregarAtributo(nombreAtr); 
-		Expect(17);
-		if (la.kind == 1) {
+	void Tipo(out string tipo) {
+		tipo = "Desconocido"; 
+		switch (la.kind) {
+		case 5: {
 			Get();
-		} else if (la.kind == 20) {
+			tipo = "int"; 
+			break;
+		}
+		case 6: {
 			Get();
-		} else if (la.kind == 21) {
+			tipo = "str"; 
+			break;
+		}
+		case 7: {
 			Get();
-		} else SynErr(31);
+			tipo = "object"; 
+			break;
+		}
+		case 8: {
+			Get();
+			tipo = "list"; 
+			if (la.kind == 28) {
+				Get();
+				Expect(1);
+				tipo = "list[" + t.val + "]"; 
+				Expect(29);
+			}
+			break;
+		}
+		case 9: {
+			Get();
+			tipo = "float"; 
+			break;
+		}
+		case 10: {
+			Get();
+			tipo = "bool"; 
+			break;
+		}
+		case 1: {
+			Get();
+			tipo = t.val; 
+			break;
+		}
+		default: SynErr(43); break;
+		}
+	}
+
+	void Term() {
+		switch (la.kind) {
+		case 2: {
+			Get();
+			break;
+		}
+		case 3: {
+			Get();
+			break;
+		}
+		case 27: {
+			Get();
+			break;
+		}
+		case 13: {
+			Get();
+			break;
+		}
+		case 32: {
+			Get();
+			if (la.kind == 24 || la.kind == 25) {
+				if (la.kind == 24) {
+					Get();
+				} else {
+					Get();
+				}
+			}
+			Expect(1);
+			break;
+		}
+		case 1: {
+			Get();
+			if (la.kind == 20) {
+				string nombreCls = t.val; 
+				Get();
+				if (la.kind == 1) {
+					Get();
+					while (la.kind == 23) {
+						Get();
+						Expect(1);
+					}
+				}
+				Expect(21);
+				tabla.AgregarRelacion(tabla.ClaseActual.Nombre, nombreCls, "composicion"); 
+			}
+			break;
+		}
+		default: SynErr(44); break;
+		}
 	}
 
 	void Sentencia() {
-		if (la.kind == 1 || la.kind == 19) {
-			if (la.kind == 19) {
+		if (StartOf(2)) {
+			if (la.kind == 32) {
 				Get();
 			}
+			if (la.kind == 24 || la.kind == 25) {
+				if (la.kind == 24) {
+					Get();
+				} else {
+					Get();
+				}
+			}
 			Expect(1);
-			if (la.kind == 17) {
+			if (la.kind == 26) {
 				Asignacion();
-			} else if (la.kind == 22) {
-				LlmadaFuncionClase();
-			} else SynErr(32);
-		} else if (la.kind == 10) {
+			} else if (la.kind == 33) {
+				Llamada();
+			} else SynErr(45);
+		} else if (la.kind == 16) {
 			Get();
-		} else if (la.kind == 9) {
+			Expect(20);
+			Expect(3);
+			Expect(21);
+		} else if (la.kind == 15) {
 			Get();
-			if (StartOf(2)) {
+		} else if (la.kind == 17) {
+			Get();
+			if (StartOf(3)) {
 				Expresion();
 			}
-		} else SynErr(33);
+		} else SynErr(46);
+	}
+
+	void ListaParametros(out List<string> parametros ) {
+		if (la.kind == 23) {
+			Get();
+		}
+		Expect(1);
+		string param = t.val; parametros = new List<string>(); parametros.Add(param); 
+		while (la.kind == 23) {
+			Get();
+			Expect(1);
+			string otroParam = t.val; parametros.Add(otroParam); 
+		}
 	}
 
 	void Asignacion() {
-		Expect(17);
-		Expect(1);
+		Expect(26);
+		Expresion();
 	}
 
-	void LlmadaFuncionClase() {
-		Expect(22);
+	void Llamada() {
+		Expect(33);
 		Expect(1);
-		Expect(12);
-		if (la.kind == 8) {
-			Get();
-		} else if (la.kind == 1) {
-			Get();
-		} else SynErr(34);
-		while (la.kind == 13) {
-			Get();
-			if (la.kind == 8) {
+		Expect(20);
+		if (la.kind == 1 || la.kind == 12) {
+			if (la.kind == 12) {
 				Get();
-			} else if (la.kind == 1) {
+			} else {
 				Get();
-			} else SynErr(35);
+			}
+			while (la.kind == 23) {
+				Get();
+				if (la.kind == 12) {
+					Get();
+				} else if (la.kind == 1) {
+					Get();
+				} else SynErr(47);
+			}
 		}
-		Expect(14);
+		Expect(21);
 	}
 
 	void Expresion() {
 		Term();
-		if (StartOf(3)) {
+		if (StartOf(4)) {
 			switch (la.kind) {
-			case 23: {
+			case 34: {
 				Get();
 				break;
 			}
-			case 24: {
+			case 35: {
 				Get();
 				break;
 			}
-			case 25: {
+			case 36: {
 				Get();
 				break;
 			}
-			case 26: {
+			case 37: {
 				Get();
 				break;
 			}
-			case 27: {
+			case 38: {
 				Get();
 				break;
 			}
-			case 28: {
+			case 39: {
 				Get();
 				break;
 			}
-			case 29: {
+			case 40: {
 				Get();
 				break;
 			}
 			}
 			Term();
 		}
-	}
-
-	void Term() {
-		if (la.kind == 2) {
-			Get();
-		} else if (la.kind == 3) {
-			Get();
-		} else if (la.kind == 21) {
-			Get();
-		} else if (la.kind == 19) {
-			Get();
-			Expect(1);
-		} else SynErr(36);
 	}
 
 
@@ -350,10 +547,11 @@ public class Parser {
 	}
 	
 	static readonly bool[,] set = {
-		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x},
-		{_x,_T,_x,_x, _x,_x,_x,_x, _x,_T,_T,_x, _x,_x,_x,_x, _x,_x,_x,_T, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x},
-		{_x,_x,_T,_T, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_T, _x,_T,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x},
-		{_x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_T, _T,_T,_T,_T, _T,_T,_x,_x}
+		{_T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x},
+		{_x,_T,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_T, _T,_T,_x,_x, _x,_x,_x,_x, _T,_T,_x,_x, _x,_x,_x,_x, _T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x},
+		{_x,_T,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _T,_T,_x,_x, _x,_x,_x,_x, _T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x},
+		{_x,_T,_T,_T, _x,_x,_x,_x, _x,_x,_x,_x, _x,_T,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_T, _x,_x,_x,_x, _T,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x},
+		{_x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_x,_x, _x,_x,_T,_T, _T,_T,_T,_T, _T,_x,_x}
 
 	};
 } // end Parser
@@ -372,38 +570,49 @@ public class Errors {
 			case 2: s = "numero expected"; break;
 			case 3: s = "cadenaCh expected"; break;
 			case 4: s = "nuevaLinea expected"; break;
-			case 5: s = "LBRACE expected"; break;
-			case 6: s = "RBRACE expected"; break;
-			case 7: s = "def expected"; break;
-			case 8: s = "self expected"; break;
-			case 9: s = "return expected"; break;
-			case 10: s = "pass expected"; break;
-			case 11: s = "\"class\" expected"; break;
-			case 12: s = "\"(\" expected"; break;
-			case 13: s = "\",\" expected"; break;
-			case 14: s = "\")\" expected"; break;
-			case 15: s = "\":\" expected"; break;
-			case 16: s = "\"__init__\" expected"; break;
-			case 17: s = "\"=\" expected"; break;
-			case 18: s = "\"super().__init__\" expected"; break;
-			case 19: s = "\"self.\" expected"; break;
-			case 20: s = "\"[]\" expected"; break;
-			case 21: s = "\"None\" expected"; break;
-			case 22: s = "\".\" expected"; break;
-			case 23: s = "\"+\" expected"; break;
-			case 24: s = "\"-\" expected"; break;
-			case 25: s = "\">=\" expected"; break;
-			case 26: s = "\"<=\" expected"; break;
-			case 27: s = "\">\" expected"; break;
-			case 28: s = "\"<\" expected"; break;
-			case 29: s = "\"==\" expected"; break;
-			case 30: s = "??? expected"; break;
-			case 31: s = "invalid DefinicionAtributo"; break;
-			case 32: s = "invalid Sentencia"; break;
-			case 33: s = "invalid Sentencia"; break;
-			case 34: s = "invalid LlmadaFuncionClase"; break;
-			case 35: s = "invalid LlmadaFuncionClase"; break;
-			case 36: s = "invalid Term"; break;
+			case 5: s = "int expected"; break;
+			case 6: s = "str expected"; break;
+			case 7: s = "object expected"; break;
+			case 8: s = "list expected"; break;
+			case 9: s = "float expected"; break;
+			case 10: s = "bool expected"; break;
+			case 11: s = "def expected"; break;
+			case 12: s = "self expected"; break;
+			case 13: s = "none expected"; break;
+			case 14: s = "class expected"; break;
+			case 15: s = "pass expected"; break;
+			case 16: s = "print expected"; break;
+			case 17: s = "return expected"; break;
+			case 18: s = "LBRACE expected"; break;
+			case 19: s = "RBRACE expected"; break;
+			case 20: s = "\"(\" expected"; break;
+			case 21: s = "\")\" expected"; break;
+			case 22: s = "\":\" expected"; break;
+			case 23: s = "\",\" expected"; break;
+			case 24: s = "\"_\" expected"; break;
+			case 25: s = "\"__\" expected"; break;
+			case 26: s = "\"=\" expected"; break;
+			case 27: s = "\"[]\" expected"; break;
+			case 28: s = "\"[\" expected"; break;
+			case 29: s = "\"]\" expected"; break;
+			case 30: s = "\"__init__\" expected"; break;
+			case 31: s = "\"super().__init__\" expected"; break;
+			case 32: s = "\"self.\" expected"; break;
+			case 33: s = "\".\" expected"; break;
+			case 34: s = "\"+\" expected"; break;
+			case 35: s = "\"-\" expected"; break;
+			case 36: s = "\">=\" expected"; break;
+			case 37: s = "\"<=\" expected"; break;
+			case 38: s = "\">\" expected"; break;
+			case 39: s = "\"<\" expected"; break;
+			case 40: s = "\"==\" expected"; break;
+			case 41: s = "??? expected"; break;
+			case 42: s = "invalid DefinicionAtributo"; break;
+			case 43: s = "invalid Tipo"; break;
+			case 44: s = "invalid Term"; break;
+			case 45: s = "invalid Sentencia"; break;
+			case 46: s = "invalid Sentencia"; break;
+			case 47: s = "invalid Llamada"; break;
 
 			default: s = "error " + n; break;
 		}

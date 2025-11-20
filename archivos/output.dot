@@ -1,0 +1,9 @@
+digraph G {
+rankdir=BT;
+node [shape=record, style=filled, fillcolor=lightyellow];
+"Persona" [label="{Persona|
++ nombre : str\l
+|
++ __init__()\l
+}"];
+}

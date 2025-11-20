@@ -2,32 +2,45 @@
 using System.IO;
 using System.Text;
 using Transdiagramdorfinal.Semantica;
+
 class Program
 {
-    static void Main()
+    static void Main(string[] args)
     {
-        string archivoOriginal = "C:\\Users\\USUARIO\\source\\repos\\Transdiagramdorfinal\\bin\\Debug\\ejemplo1.py";
-        string archivoProcesado = "C:\\Users\\USUARIO\\source\\repos\\Transdiagramdorfinal\\bin\\Debug\\ejemplo1_procesado.py";
+        if (args.Length < 1)
+        {
+            Console.WriteLine(" Error: Debes proporcionar la ruta del archivo .py como argumento.");
+            Console.WriteLine("Uso: MiBackend.exe <ruta_archivo_py> [ruta_archivo_dot]");
+            return;
+        }
+        string archivoOriginal = args[0];
+        string archivoProcesado = Path.Combine(Path.GetDirectoryName(archivoOriginal), Path.GetFileNameWithoutExtension(archivoOriginal) + "_procesado.py");
+        string rutaDot = args.Length > 1 ? args[1] : Path.Combine(Path.GetDirectoryName(archivoOriginal), "output.dot");  // Ruta de salida por defecto si no se especifica
         try
         {
+            if (!File.Exists(archivoOriginal))
+            {
+                Console.WriteLine($" Error: El archivo {archivoOriginal} no existe.");
+                return;
+            }
             string input = File.ReadAllText(archivoOriginal);
             string inputProcesado = PreprocesarIndentacion(input);
             File.WriteAllText(archivoProcesado, inputProcesado);
-            Console.WriteLine($"Verificando GRAMATICA");
-            Scanner scanner = new Scanner("C:\\Users\\USUARIO\\source\\repos\\Transdiagramdorfinal\\bin\\Debug\\ejemplo1_procesado.py");
+            Scanner scanner = new Scanner(archivoProcesado);
             Parser parser = new Parser(scanner);
             parser.Parse();
             Console.WriteLine($"Fin de proceso");
-            string rutaDot = "C:\\Users\\USUARIO\\source\\repos\\Transdiagramdorfinal\\bin\\Debug\\diagrama.dot";
             GeneradorDot.GenerarDot(parser.tabla, rutaDot);
-            Console.WriteLine($"✅ Archivo DOT generado en {rutaDot}");
-
+            Console.WriteLine($"Archivo DOT generado en {rutaDot}");
+            Console.WriteLine(rutaDot); 
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error durante el parsing: {ex.Message}");
+            Console.WriteLine(ex.Message);
+            Environment.Exit(1);
         }
     }
+
     static string PreprocesarIndentacion(string input)
     {
         var lines = input.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);

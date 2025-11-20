@@ -4,53 +4,119 @@ using System.Collections.Generic;
 
 COMPILER sintaxisPy
 
-    public TablaClases tabla = new TablaClases();
+    public TablaClases tabla = new TablaClases(); 
 
 CHARACTERS
   letra = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" .
-  digito  = "0123456789" .
+  digito  = "0123456789" . 
   espacio = ' ' + '\t' .
   saltoLinea = '\n' + '\r' .
-  carCadena  = letra + digito + espacio + '.' + ',' + ':' .
 
 TOKENS
   identificador = letra { letra | digito | "_" } .
   numero = digito { digito } .
-  cadenaCh = '"' { carCadena } '"' .
+  cadenaCh = '"' { letra | digito | espacio | "." | "," | ":" | "-" | "_" | "/" } '"' .
   nuevaLinea = saltoLinea {saltoLinea} .
-  LBRACE = "{" .
-  RBRACE = "}" .
+  int = "int" .
+  str = "str" .
+  object = "object" .
+  list = "list" .
+  float = "float" .
+  bool = "bool" .
   def = "def" .
   self = "self" .
-  return = "return" .
+  none = "None" .
+  class = "class" .
   pass = "pass" .
-
+  print = "print" .
+  return = "return" .
+  LBRACE = "{" .
+  RBRACE = "}" .
 
 IGNORE espacio 
 
 PRODUCTIONS
-  sintaxisPy = {DeclaracionClase [nuevaLinea]} EOF.
+  sintaxisPy = { DeclaracionClase [ nuevaLinea ] } EOF.
 
-  DeclaracionClase = "class" identificador (. string nombreClase = t.val; tabla.NuevaClase(nombreClase);.) [ "(" identificador (. string claseBase = t.val; tabla.AgregarHerencia(claseBase);.) { "," identificador (. string claseBase2 = t.val; tabla.AgregarHerencia(claseBase2);.) } ")" ] ":" nuevaLinea LBRACE [nuevaLinea]  DefinicionConstructor nuevaLinea {DefinicionFuncion [nuevaLinea]} [nuevaLinea] RBRACE .
+  DeclaracionClase = class identificador (. string nombreClase = t.val; tabla.NuevaClase(nombreClase);.) [ "(" ListaHerencia ")" ] ":" [ nuevaLinea ] 
+                     LBRACE { nuevaLinea }
+                        DefinicionAtributo [ nuevaLinea ] { DefinicionAtributo [ nuevaLinea ] }
+                        DefinicionConstructor [ nuevaLinea ]
+                        [ DefinicionMetodo [ nuevaLinea ] { DefinicionMetodo [ nuevaLinea ] } ]
+                     RBRACE .
 
-  DefinicionConstructor = def "__init__" "(" self [ "," identificador ["=" identificador] { "," identificador ["=" identificador] } ] ")" ":" nuevaLinea LBRACE [nuevaLinea] [DefinicionSuperConstructor nuevaLinea] {DefinicionAtributo nuevaLinea} [nuevaLinea] RBRACE .
+  ListaHerencia = identificador (. string claseBase = t.val; tabla.AgregarHerencia(claseBase); .) 
+                  { "," identificador (. string otraClase = t.val; tabla.AgregarHerencia(otraClase); .) } .
 
-  DefinicionSuperConstructor = "super().__init__" "(" [ identificador { "," identificador } ] ")".
+  DefinicionAtributo = [ '_' | "__" ] (. string visibilidad = t.val; 
+                                         if (visibilidad == "__") visibilidad = "-";
+                                         else if (visibilidad == "_") visibilidad = "#";
+                                         else visibilidad = "+"; .)
+                       identificador (. string nombreAtr = t.val; .)
+                       (. string tipo = "Desconocido"; string valorInicial = null; .) [ ":" Tipo<out tipo> ] 
+                       [ "=" ( numero (. valorInicial = t.val; .)
+                             | cadenaCh (. valorInicial = t.val; .)
+                             | "[]" (. valorInicial = "[]"; .)
+                             | none (. valorInicial = "None"; .) 
+                             ) ] 
+                       (. tabla.AgregarAtributo(visibilidad, nombreAtr, tipo, valorInicial);
+                          List <string> primitivos = new List<string> {"int", "str", "float", "bool"};
+                          if (!primitivos.Contains(tipo)) 
+                          {
+                            string relacion = "asociacion";
+                            string tipoDestino = tipo;
+                            string cardOrigen = "1";
+                            string cardDestino = "1";
+                            
+                            if (tipo.StartsWith("list[")) 
+                            {
+                              tipoDestino = tipo.Substring(5, tipo.Length - 6);
+                              cardDestino = "*";
+                            }
 
-  DefinicionAtributo = "self." identificador (.string nombreAtr = t.val; tabla.AgregarAtributo(nombreAtr); .) "=" (identificador | "[]" | "None" ) .
+                            Clase claseDestino = tabla.BuscarClase(tipoDestino);
+                            if (claseDestino != null) 
+                            {
+                              tabla.AgregarRelacion(tabla.ClaseActual.Nombre, claseDestino.Nombre, relacion, cardOrigen, cardDestino);
+                            }
+                          }
+                       .) .
 
-  DefinicionFuncion = def identificador (.string nombreFunc = t.val; var parametros = new List<string>();.) "(" self [ "," identificador (. string param = t.val; if (param != null) parametros.Add(param);.) { "," identificador (.string param2 = t.val; if (param2 != null) parametros.Add(param2);.) } ] ")" ":" nuevaLinea LBRACE [nuevaLinea] { Sentencia nuevaLinea } [nuevaLinea] RBRACE (.tabla.AgregarMetodo(nombreFunc, parametros);.) .
+  Tipo<out string tipo> = (. tipo = "Desconocido"; .)
+                          ( int (. tipo = "int"; .)
+                            | str (. tipo = "str"; .)
+                            | object (. tipo = "object"; .)
+                            | list (. tipo = "list"; .) [ "[" identificador (. tipo = "list[" + t.val + "]"; .) "]"  ]
+                            | float (. tipo = "float"; .)
+                            | bool (. tipo = "bool"; .)
+                            | identificador (. tipo = t.val; .)
+                          ) .
 
-  Sentencia = ["self."] identificador (Asignacion | LlmadaFuncionClase) | pass | return [Expresion] .
+  DefinicionConstructor = def "__init__" (. string constructor = t.val; List<string> parametros = new List<string>(); tabla.AgregarMetodo(constructor, parametros); .)
+                          "(" self [ "," identificador [ "=" Term ] { "," identificador [ "=" Term ] } ] ")" ":" nuevaLinea
+                          LBRACE [ nuevaLinea ]
+                            [ "super().__init__" "(" [ identificador { "," identificador } ] ")" nuevaLinea ]
+                            Sentencia [ nuevaLinea ] { Sentencia [ nuevaLinea ] } 
+                          RBRACE .
+   
+  DefinicionMetodo = def identificador (. string nombreFunc = t.val; .)
+                    "(" (. List<string> parametros = new List<string>(); .) self [ ListaParametros<out parametros> ] ")" ":" nuevaLinea  
+                     (. tabla.AgregarMetodo(nombreFunc, parametros); .)
+                     LBRACE [ nuevaLinea ] 
+                       Sentencia [ nuevaLinea ] { Sentencia [ nuevaLinea ] } 
+                     RBRACE .
 
-  LlmadaFuncionClase = "." identificador "(" (self | identificador) { "," (self | identificador) } ")" .
+  ListaParametros<. out List<string> parametros .> = [ "," ] identificador (. string param = t.val; parametros = new List<string>(); parametros.Add(param); .) 
+                                                     { "," identificador (. string otroParam = t.val; parametros.Add(otroParam); .) } .  
 
-  Asignacion = "=" identificador .
+  Sentencia = [ "self." ] [ ( "_" | "__" ) ] identificador ( Asignacion | Llamada ) | print "(" cadenaCh ")" | pass | return [ Expresion ] .
 
-  Expresion = Term [ ( "+" | "-" | ">=" | "<=" | ">" | "<" | "==" ) Term ]  .  // Expandida para operadores
+  Llamada = "." identificador "(" [ ( self | identificador) { "," ( self | identificador) } ] ")" .
 
-  Term = numero | cadenaCh | "None" | "self." identificador .
+  Asignacion = "=" Expresion .
 
+  Expresion = Term [ ( "+" | "-" | ">=" | "<=" | ">" | "<" | "==" ) Term ]  . 
 
+  Term = numero | cadenaCh | "[]" | none | "self." [ ( "_" | "__" ) ] identificador | identificador [ (. string nombreCls = t.val; .) "(" [ identificador { ","   identificador } ] ")" (. tabla.AgregarRelacion(tabla.ClaseActual.Nombre, nombreCls, "composicion"); .) ] .
 
-END sintaxisPy.
+END sintaxisPy. 

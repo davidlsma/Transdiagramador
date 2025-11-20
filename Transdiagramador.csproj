@@ -99,7 +99,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="bin\Debug\ejemplo1.py" />
-    <Content Include="bin\Debug\ejemplo1_procesado.py" />
     <Content Include="bin\Debug\Transdiagramdorfinal.exe" />
     <Content Include="bin\Debug\Transdiagramdorfinal.pdb" />
     <Content Include="obj\Debug\Transdiagramdorfinal.csproj.FileListAbsolute.txt" />
